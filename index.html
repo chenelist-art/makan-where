@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Can't decide where to eat around Taylor's Lakeside? Spin the wheel.">
+<title>Makan Where?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one lakeside "menu board" — wheel is the hero, chips above, result card below; two columns on wide screens */
+:root{
+  --bg:#F3F7F6;
+  --surface:#FFFFFF;
+  --ink:#10302F;
+  --muted:#557371;
+  --lake:#0F5E62;
+  --lake-soft:#D7ECEA;
+  --sambal:#E2522B;
+  --kunyit:#F2B33D;
+  --pandan:#5E9B4F;
+  --line:#CFE0DE;
+  --seg1:#0F5E62; --seg2:#E2522B; --seg3:#F2B33D; --seg4:#5E9B4F; --seg5:#2E8A8F; --seg6:#C63F1F;
+  --seg-text:#FFFFFF;
+  --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Figtree", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1B1C; --surface:#13292A; --ink:#E6F2F0; --muted:#93B2AF; --lake:#5CC3C4; --lake-soft:#173A3B;
+    --sambal:#FF7A52; --kunyit:#F5C259; --pandan:#86C274; --line:#24494A;
+    --seg1:#1E7F83; --seg2:#D9532D; --seg3:#C9922B; --seg4:#4F8A41; --seg5:#2A6E72; --seg6:#B8462A;
+    --seg-text:#FFFFFF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1B1C; --surface:#13292A; --ink:#E6F2F0; --muted:#93B2AF; --lake:#5CC3C4; --lake-soft:#173A3B;
+  --sambal:#FF7A52; --kunyit:#F5C259; --pandan:#86C274; --line:#24494A;
+  --seg1:#1E7F83; --seg2:#D9532D; --seg3:#C9922B; --seg4:#4F8A41; --seg5:#2A6E72; --seg6:#B8462A;
+  --seg-text:#FFFFFF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 20px;margin-bottom:18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2rem,6vw,3.1rem);line-height:1;margin:0;letter-spacing:-0.02em;text-wrap:balance}
+h1 span{color:var(--sambal)}
+.sub{margin:6px 0 0;color:var(--muted);font-weight:500}
+.count{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.filters{display:flex;flex-direction:column;gap:14px}
+.fgroup{display:flex;flex-direction:column;gap:6px}
+.flabel{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:600 .86rem var(--body);padding:6px 12px;border-radius:999px;cursor:pointer;transition:background .15s,border-color .15s}
+.chip:hover{border-color:var(--lake)}
+.chip[aria-pressed="true"]{background:var(--lake);border-color:var(--lake);color:var(--bg)}
+.chip:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,.x:focus-visible,summary:focus-visible{outline:3px solid var(--kunyit);outline-offset:2px}
+.toggle{display:flex;align-items:center;gap:8px;font-weight:500;font-size:.9rem;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--lake)}
+.wheelbox{display:flex;flex-direction:column;align-items:center;gap:14px}
+.wheel-stage{position:relative;width:min(100%,420px);aspect-ratio:1/1;max-width:100%}
+canvas{width:100%;height:100%;display:block}
+.pointer{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid var(--ink);filter:drop-shadow(0 2px 0 var(--bg))}
+.hub{position:absolute;inset:0;margin:auto;width:22%;height:22%;border-radius:50%;background:var(--surface);border:4px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:clamp(.8rem,3vw,1rem);color:var(--ink);text-align:center;line-height:1}
+.actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.btn{appearance:none;border:0;border-radius:14px;font:700 1rem var(--body);padding:12px 22px;cursor:pointer}
+.btn.primary{background:var(--sambal);color:#fff;font-family:var(--display);font-size:1.15rem;letter-spacing:.01em;padding:14px 34px;box-shadow:0 4px 0 color-mix(in srgb, var(--sambal) 60%, var(--ink))}
+.btn.primary:active{transform:translateY(2px);box-shadow:0 2px 0 color-mix(in srgb, var(--sambal) 60%, var(--ink))}
+.btn.ghost{background:transparent;color:var(--lake);border:1.5px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.pool-note{font-size:.82rem;color:var(--muted);text-align:center;margin:0}
+.result{background:var(--surface);border:2px solid var(--ink);border-radius:18px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:8px;min-height:150px}
+.result .eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sambal)}
+.result h2{font-family:var(--display);font-weight:800;font-size:1.7rem;line-height:1.1;margin:0;text-wrap:balance}
+.result p{margin:0;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--lake-soft);color:var(--lake)}
+.tag.halal{background:color-mix(in srgb, var(--pandan) 20%, transparent);color:var(--pandan)}
+.tag.budget{background:color-mix(in srgb, var(--kunyit) 25%, transparent);color:color-mix(in srgb, var(--kunyit) 55%, var(--ink))}
+.tag.mine{background:color-mix(in srgb, var(--sambal) 18%, transparent);color:var(--sambal)}
+.result-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.result-actions a,.result-actions button{font:600 .88rem var(--body);color:var(--lake);background:none;border:1.5px solid var(--line);border-radius:10px;padding:7px 12px;text-decoration:none;cursor:pointer}
+.result-actions a:hover,.result-actions button:hover{border-color:var(--lake)}
+.empty{color:var(--muted)}
+.side{display:flex;flex-direction:column;gap:20px;min-width:0}
+details{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:12px 14px}
+summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:8px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--display);font-size:1.2rem;line-height:1;color:var(--muted)}
+details[open] summary::after{content:"–"}
+.list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;max-height:340px;overflow:auto}
+.list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 2px;border-top:1px solid var(--line);font-size:.9rem}
+.list li span.a{color:var(--muted);font-size:.78rem;white-space:nowrap}
+.x{appearance:none;border:0;background:none;color:var(--sambal);font:700 .8rem var(--body);cursor:pointer;padding:2px 6px}
+form.add{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:10px}
+form.add input,form.add select{width:100%;font:500 .9rem var(--body);padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);min-width:0}
+form.add .full{grid-column:1/-1}
+form.add .btn{grid-column:1/-1;background:var(--lake);color:var(--bg);padding:10px}
+.fine{font-size:.78rem;color:var(--muted);margin:0}
+.fine a{color:var(--lake)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Makan <span>Where?</span></h1>
+      <p class="sub">Taylor's Lakeside edition. Can't decide? Spin it.</p>
+    </div>
+    <div class="count" id="count"></div>
+  </header>
+
+  <div class="grid">
+    <section class="wheelbox" aria-label="Food wheel">
+      <div class="wheel-stage">
+        <canvas id="wheel" width="840" height="840" aria-hidden="true"></canvas>
+        <div class="pointer" aria-hidden="true"></div>
+        <div class="hub" aria-hidden="true">jom<br>makan</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="spin" type="button">Spin</button>
+        <button class="btn ghost" id="quick" type="button">Just pick for me</button>
+      </div>
+      <p class="pool-note" id="poolnote"></p>
+    </section>
+
+    <div class="side">
+      <div class="result" id="result" aria-live="polite">
+        <span class="eyebrow">Today you're eating at</span>
+        <h2 id="r-name">…spin first</h2>
+        <p id="r-desc" class="empty">Pick where you are and what you feel like, then hit Spin.</p>
+        <div class="tags" id="r-tags"></div>
+        <div class="result-actions" id="r-actions" hidden>
+          <a id="r-map" href="#" target="_blank" rel="noopener">Open in Google Maps</a>
+          <button id="r-nope" type="button">Not today, spin again</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="fgroup">
+          <span class="flabel" id="l-area">Where</span>
+          <div class="chips" role="group" aria-labelledby="l-area" id="f-area"></div>
+        </div>
+        <div class="fgroup">
+          <span class="flabel" id="l-crave">Craving</span>
+          <div class="chips" role="group" aria-labelledby="l-crave" id="f-crave"></div>
+        </div>
+        <div class="fgroup">
+          <label class="toggle"><input type="checkbox" id="f-budget"> Budget-friendly only</label>
+          <label class="toggle"><input type="checkbox" id="f-halal"> Halal confirmed only</label>
+        </div>
+      </div>
+
+      <details id="all">
+        <summary><span id="all-title">All spots</span></summary>
+        <ul class="list" id="list"></ul>
+        <form class="add" id="addform">
+          <input class="full" id="add-name" placeholder="Add your own spot, e.g. the mamak near your condo" maxlength="60" required aria-label="Spot name">
+          <select id="add-area" aria-label="Where it is"></select>
+          <select id="add-crave" aria-label="What kind of food"></select>
+          <button class="btn" type="submit">Add to my wheel</button>
+        </form>
+        <p class="fine" style="margin-top:8px">Spots you add are saved on this device only.</p>
+      </details>
+
+      <p class="fine">Spots from Taylor's <a href="https://university.taylors.edu.my/en/student-life/life-at-campus/eating-at-campus.html" target="_blank" rel="noopener">Eating at Campus</a> page, <a href="https://www.burpple.com/neighbourhoods/kl/usj?category=cheap-and-good" target="_blank" rel="noopener">Burpple USJ</a> and <a href="https://www.sunwaypyramid.com/blogs/top-5-halal-certified-restaurants-in-sunway-pyramid-and-where-to-find-them" target="_blank" rel="noopener">Sunway Pyramid</a>, Oct 2026. "Halal confirmed" only appears where the source says so; most campus outlets aren't tagged because Taylor's list doesn't state it, so ask at the counter. Outlets change, so check the outlet is still open.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const AREAS = [
+  {id:"campus", label:"On campus"},
+  {id:"usj", label:"USJ"},
+  {id:"pyramid", label:"Sunway Pyramid"}
+];
+const CRAVES = [
+  {id:"local", label:"Local & rice"},
+  {id:"noodles", label:"Noodles"},
+  {id:"western", label:"Western"},
+  {id:"kj", label:"Korean & Japanese"},
+  {id:"asian", label:"Other Asian"},
+  {id:"cafe", label:"Café & drinks"},
+  {id:"quick", label:"Quick bites"}
+];
+// d = what the source says; c = craving; b = budget-friendly per source; h = halal per source
+const SPOTS = [
+  // On campus — Taylor's "Eating at Campus" page and Affordable Food Options list
+  {n:"Arisan Fried Chicken",a:"campus",c:"local",d:"Hawker-style fried chicken, fish and squid.",b:1},
+  {n:"Bungkus Kaw Kaw",a:"campus",c:"local",d:"Traditional Malaysian food and drinks to go."},
+  {n:"COOX",a:"campus",c:"local",d:"Mix-and-match meals."},
+  {n:"Face To Face Noodle",a:"campus",c:"noodles",d:"Noodle bowls."},
+  {n:"Hari Hari Ayam",a:"campus",c:"local",d:"Casual local-style chicken dishes."},
+  {n:"Hot And Roll",a:"campus",c:"quick",d:"Sweet and savoury crepes, paratha and wholemeal wraps."},
+  {n:"JC Kanteen",a:"campus",c:"local",d:"Malaysian kopitiam food and drinks.",b:1},
+  {n:"Joe's Western",a:"campus",c:"western",d:"Western food, generous portions.",b:1},
+  {n:"Jom Tarik",a:"campus",c:"local",d:"Mamak food. At Syopz LG1."},
+  {n:"Juice Lab",a:"campus",c:"cafe",d:"Juices, smoothies and smoothie bowls."},
+  {n:"Koppiku",a:"campus",c:"cafe",d:"Coffee and cooler drinks.",b:1},
+  {n:"Lepak",a:"campus",c:"cafe",d:"Food and drinks, chill hangout spot."},
+  {n:"Little Cloud",a:"campus",c:"asian",d:"Hong Kong café: milk tea, egg waffles, rice and noodles."},
+  {n:"Loaf & Latte",a:"campus",c:"cafe",d:"Bread and coffee."},
+  {n:"Mala Co.",a:"campus",c:"asian",d:"Mala-style wraps."},
+  {n:"MARU Coffee",a:"campus",c:"kj",d:"Coffee plus Japanese-style bowls, donburi and sandwiches."},
+  {n:"Mixue",a:"campus",c:"cafe",d:"Tea and ice cream.",b:1},
+  {n:"Mr Mixed Rice",a:"campus",c:"local",d:"Asian home-style mixed rice."},
+  {n:"Prestige Cafe",a:"campus",c:"western",d:"Asian-Western fusion.",b:1},
+  {n:"Salad Atelier",a:"campus",c:"western",d:"Pasta, burgers, poke bowls and salads."},
+  {n:"Seoul Korean Street Food",a:"campus",c:"kj",d:"Korean street food."},
+  {n:"Starbucks",a:"campus",c:"cafe",d:"Coffee and pastries."},
+  {n:"Subway",a:"campus",c:"western",d:"Subs and salads."},
+  {n:"Sushi Plus",a:"campus",c:"kj",d:"Sushi."},
+  {n:"T&L Coffee",a:"campus",c:"cafe",d:"Coffee, sandwiches and pastries."},
+  {n:"XOXO Cafe",a:"campus",c:"cafe",d:"Coffee and treats."},
+  {n:"ZUS Coffee",a:"campus",c:"cafe",d:"Specialty coffee.",b:1},
+  {n:"Billy Boy's Kopitiam",a:"campus",c:"local",d:"Breakfast, local lunch and dinner, salads. At Syopz G."},
+  {n:"Shell Café",a:"campus",c:"quick",d:"Quick bites. At Syopz G."},
+  {n:"G&G Café",a:"campus",c:"cafe",d:"Café at Block E, Level 1."},
+  {n:"FamilyMart",a:"campus",c:"quick",d:"Convenience store with fresh food."},
+  // Lakeview Haus food hall kiosks
+  {n:"Kungfu Ramen",a:"campus",c:"noodles",d:"Kiosk at Lakeview Haus, the food hall by the lake."},
+  {n:"Picante Sizzling & Chili Panmee",a:"campus",c:"noodles",d:"Chili pan mee and sizzling dishes at Lakeview Haus."},
+  {n:"Spicy Temptation",a:"campus",c:"",d:"Kiosk at Lakeview Haus, the food hall by the lake."},
+  {n:"if Cafe Wok Hey Canteen",a:"campus",c:"asian",d:"Wok dishes at Lakeview Haus."},
+  {n:"Shawarma Express",a:"campus",c:"quick",d:"Shawarma at Lakeview Haus."},
+  {n:"BBQ Rice",a:"campus",c:"local",d:"BBQ rice at Lakeview Haus."},
+  {n:"Foodlala Thai Cuisine Express",a:"campus",c:"asian",d:"Thai food at Lakeview Haus."},
+  {n:"Zesty Luo",a:"campus",c:"",d:"Kiosk at Lakeview Haus, the food hall by the lake."},
+  {n:"Bang Ga Bang Ga Korean",a:"campus",c:"kj",d:"Korean food at Lakeview Haus."},
+  // USJ — Burpple "Cheap & Good" (around RM10 per person)
+  {n:"Restoran Meisek",a:"usj",c:"local",d:"Chinese local favourites, Jalan USJ 14/1K. Around RM10/pax.",b:1},
+  {n:"Yong Sheng Restaurant",a:"usj",c:"local",d:"Kopitiam. Around RM10/pax.",b:1},
+  {n:"Restoran Tien Tien Fatt",a:"usj",c:"local",d:"Kopitiam in USJ 8. Around RM10/pax.",b:1},
+  {n:"Lian Heng Pan Mee",a:"usj",c:"noodles",d:"Pan mee. Around RM10/pax.",b:1},
+  {n:"Kedai Makanan USJ 2",a:"usj",c:"local",d:"Hawker food centre in USJ 2. Around RM10/pax.",b:1},
+  {n:"Restoran Sin Kong",a:"usj",c:"local",d:"Chinese local food. Around RM10/pax.",b:1},
+  {n:"Super Kitchen Chilli Pan Mee (USJ 9)",a:"usj",c:"noodles",d:"Chilli pan mee in USJ 9. Around RM10/pax.",b:1},
+  {n:"Murni Discovery (USJ 9)",a:"usj",c:"local",d:"Supper spot, Jalan USJ 9/5P."},
+  {n:"Restoran A Hassan",a:"usj",c:"local",d:"Malay food, Jalan USJ 10/1. Around RM10/pax.",b:1},
+  {n:"Auntie Lora Kopitiam",a:"usj",c:"local",d:"Kopitiam. Around RM10/pax.",b:1},
+  // Sunway Pyramid — mall blog, Mar 2024
+  {n:"SUPAMALA Hotpot",a:"pyramid",c:"asian",d:"Szechuan hotpot. The mall says it's Malaysia's first halal-certified Szechuan hotpot.",h:1},
+  {n:"Kyochon",a:"pyramid",c:"kj",d:"Korean fried chicken."},
+  {n:"Tea Garden",a:"pyramid",c:"local",d:"Malaysian food."},
+  {n:"BananaBro",a:"pyramid",c:"local",d:"Banana leaf rice, Indian-inspired."},
+  {n:"Ayam Penyet Express",a:"pyramid",c:"local",d:"Indonesian and local food, LG2.86. Listed as halal by the mall.",h:1},
+  {n:"Nak Nak",a:"pyramid",c:"kj",d:"Korean-inspired; the mall describes it as halal Korean meals.",h:1}
+];
+const AREA_MAP = {campus:"Taylor's University Lakeside Campus Subang Jaya", usj:"USJ Subang Jaya", pyramid:"Sunway Pyramid"};
+const KEY = "makanwhere.v1";
+
+let mine = [];
+try { mine = JSON.parse(localStorage.getItem(KEY) || "[]") || []; } catch(e){ mine = []; }
+function saveMine(){ try { localStorage.setItem(KEY, JSON.stringify(mine)); } catch(e){} }
+
+const state = { areas:new Set(["campus"]), craves:new Set(), budget:false, halal:false, skip:new Set() };
+let rot = 0, spinning = false, wheelItems = [];
+
+const $ = id => document.getElementById(id);
+function allSpots(){ return SPOTS.concat(mine.map(m => ({...m, mine:1}))); }
+function matches(){
+  return allSpots().filter(s =>
+    (state.areas.size===0 || state.areas.has(s.a)) &&
+    (state.craves.size===0 || state.craves.has(s.c)) &&
+    (!state.budget || s.b) && (!state.halal || s.h) && !state.skip.has(s.n));
+}
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function chip(group, item, set){
+  const b=document.createElement("button");
+  b.type="button"; b.className="chip"; b.textContent=item.label;
+  b.setAttribute("aria-pressed", set.has(item.id));
+  b.addEventListener("click",()=>{ set.has(item.id)?set.delete(item.id):set.add(item.id); b.setAttribute("aria-pressed", set.has(item.id)); state.skip.clear(); refresh(); });
+  group.appendChild(b);
+}
+AREAS.forEach(a=>chip($("f-area"),a,state.areas));
+CRAVES.forEach(c=>chip($("f-crave"),c,state.craves));
+$("f-budget").addEventListener("change",e=>{state.budget=e.target.checked;state.skip.clear();refresh();});
+$("f-halal").addEventListener("change",e=>{state.halal=e.target.checked;state.skip.clear();refresh();});
+AREAS.forEach(a=>{const o=document.createElement("option");o.value=a.id;o.textContent=a.label;$("add-area").appendChild(o);});
+[{id:"",label:"Any type"}].concat(CRAVES).forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.label;$("add-crave").appendChild(o);});
+
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function buildWheel(){
+  const pool = matches();
+  wheelItems = pool.length > 12 ? shuffle(pool).slice(0,12) : shuffle(pool);
+  const total = allSpots().length;
+  $("count").textContent = total + " spots";
+  $("poolnote").textContent = pool.length===0 ? "No spots match. Loosen a filter."
+    : pool.length>12 ? `12 random picks from ${pool.length} matches. Each spin reshuffles.`
+    : `${pool.length} spot${pool.length===1?"":"s"} on the wheel.`;
+  $("spin").disabled = $("quick").disabled = pool.length===0;
+  draw();
+}
+
+function draw(){
+  const cv=$("wheel"), ctx=cv.getContext("2d"), W=cv.width, R=W/2;
+  ctx.clearRect(0,0,W,W);
+  const n = wheelItems.length;
+  const segCols=[css("--seg1"),css("--seg2"),css("--seg3"),css("--seg4"),css("--seg5"),css("--seg6")];
+  ctx.save(); ctx.translate(R,R);
+  if(n===0){
+    ctx.beginPath(); ctx.arc(0,0,R-8,0,Math.PI*2); ctx.fillStyle=css("--line"); ctx.fill();
+    ctx.restore(); return;
+  }
+  const seg = Math.PI*2/n;
+  for(let i=0;i<n;i++){
+    const a0 = rot + i*seg;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R-8,a0,a0+seg); ctx.closePath();
+    ctx.fillStyle = segCols[(n%6===1 && i===n-1) ? 2 : i%6]; ctx.fill();
+    ctx.lineWidth=4; ctx.strokeStyle=css("--bg"); ctx.stroke();
+    ctx.save(); ctx.rotate(a0+seg/2);
+    ctx.fillStyle=css("--seg-text");
+    const fs = n<=6?34:n<=9?28:24;
+    ctx.font = `700 ${fs}px Figtree, system-ui, sans-serif`;
+    ctx.textAlign="right"; ctx.textBaseline="middle";
+    let label = wheelItems[i].n; if(label.length>17) label=label.slice(0,16)+"…";
+    ctx.fillText(label, R-30, 0);
+    ctx.restore();
+  }
+  ctx.beginPath(); ctx.arc(0,0,R-8,0,Math.PI*2); ctx.lineWidth=8; ctx.strokeStyle=css("--ink"); ctx.stroke();
+  ctx.restore();
+}
+
+function show(s){
+  $("r-name").textContent = s.n;
+  const areaLabel = AREAS.find(a=>a.id===s.a)?.label || "";
+  $("r-desc").textContent = (s.d ? s.d + " " : "") ;
+  $("r-desc").className="";
+  const tags=$("r-tags"); tags.innerHTML="";
+  const add=(t,cls)=>{const e=document.createElement("span");e.className="tag"+(cls?" "+cls:"");e.textContent=t;tags.appendChild(e);};
+  add(areaLabel);
+  const cr = CRAVES.find(c=>c.id===s.c); if(cr) add(cr.label);
+  if(s.b) add("Budget-friendly","budget");
+  if(s.h) add("Halal confirmed","halal");
+  if(s.mine) add("Your spot","mine");
+  $("r-map").href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(s.n + " " + (AREA_MAP[s.a]||""));
+  $("r-actions").hidden=false;
+  $("result").dataset.current = s.n;
+}
+
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function spin(){
+  if(spinning) return;
+  buildWheel();
+  const n = wheelItems.length; if(!n) return;
+  spinning=true; $("spin").disabled=true;
+  const win = Math.floor(Math.random()*n), seg=Math.PI*2/n;
+  const jitter = (Math.random()-0.5)*0.7;
+  const TAU=Math.PI*2;
+  const target = ((-Math.PI/2 - (win+0.5+jitter)*seg) % TAU + TAU) % TAU;
+  const base = ((rot % TAU) + TAU) % TAU;
+  const delta = ((target - base) % TAU + TAU) % TAU;
+  const start = rot, end = rot + (reduce?0:5*TAU) + delta;
+  const dur = reduce ? 1 : 3200, t0 = performance.now();
+  $("r-name").textContent="Spinning…"; $("r-desc").textContent=""; $("r-tags").innerHTML=""; $("r-actions").hidden=true;
+  function frame(t){
+    const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,4);
+    rot = start + (end-start)*e; draw();
+    if(p<1) requestAnimationFrame(frame);
+    else { spinning=false; $("spin").disabled=false; show(wheelItems[win]); }
+  }
+  requestAnimationFrame(frame);
+}
+$("spin").addEventListener("click",spin);
+$("quick").addEventListener("click",()=>{ const pool=matches(); if(pool.length) show(pool[Math.floor(Math.random()*pool.length)]); });
+$("r-nope").addEventListener("click",()=>{ const c=$("result").dataset.current; if(c) state.skip.add(c); if(matches().length===0){ state.skip.clear(); } spin(); });
+
+function renderList(){
+  const ul=$("list"); ul.innerHTML="";
+  const all=allSpots().slice().sort((a,b)=>a.n.localeCompare(b.n));
+  $("all-title").textContent = `All ${all.length} spots`;
+  all.forEach(s=>{
+    const li=document.createElement("li");
+    const left=document.createElement("span"); left.textContent=s.n;
+    const right=document.createElement("span"); right.className="a";
+    right.textContent = AREAS.find(a=>a.id===s.a)?.label || "";
+    li.appendChild(left);
+    if(s.mine){
+      const x=document.createElement("button"); x.type="button"; x.className="x"; x.textContent="Remove";
+      x.setAttribute("aria-label","Remove "+s.n);
+      x.addEventListener("click",()=>{ mine=mine.filter(m=>m.n!==s.n); saveMine(); refresh(); });
+      const wrapR=document.createElement("span"); wrapR.style.display="flex"; wrapR.style.gap="6px"; wrapR.style.alignItems="center";
+      wrapR.appendChild(right); wrapR.appendChild(x); li.appendChild(wrapR);
+    } else li.appendChild(right);
+    ul.appendChild(li);
+  });
+}
+$("addform").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=$("add-name").value.trim(); if(!name) return;
+  if(allSpots().some(s=>s.n.toLowerCase()===name.toLowerCase())){ $("add-name").value=""; return; }
+  mine.push({n:name,a:$("add-area").value,c:$("add-crave").value,d:"Added by you."});
+  saveMine(); $("add-name").value=""; refresh();
+});
+
+function refresh(){ buildWheel(); renderList(); }
+refresh();
+const mq=matchMedia("(prefers-color-scheme: dark)"); mq.addEventListener?.("change",draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+document.fonts?.ready?.then(draw);
+</script>
+
+</body>
+</html>
